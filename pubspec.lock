@@ -160,6 +160,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.16.0"
+  pandabar:
+    dependency: "direct main"
+    description:
+      name: pandabar
+      sha256: bb5f394bc1c1c6779af042c3b3edc09a2610b146a0b3e06a9f1f67bd35bd33c0
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.2"
   path:
     dependency: transitive
     description:
