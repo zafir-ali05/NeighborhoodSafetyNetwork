@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';  // Add this import
 import 'package:cloud_firestore/cloud_firestore.dart';  // Add this import
+import 'package:geolocator/geolocator.dart';
 
 class SilentAlertPage extends StatefulWidget {
   @override
@@ -16,6 +17,21 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;  // Add this line
   bool _isSending = false;
   List<ChatMessage> messages = [];
+
+  // Add this list of predefined messages
+  final List<String> quickMessages = [
+    
+    "Severe Domestic Situation - Alert authorities",
+    "Under duress - Alert authorities",
+    "Someone is following me - Pick me up",
+    "Need help - Feel unsafe",
+    
+  ];
+
+  // Add this method to handle quick message selection
+  void _selectQuickMessage(String message) {
+    _messageController.text = message;
+  }
 
   @override
   void initState() {
@@ -41,34 +57,88 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
     }
   }
 
+  Future<Position?> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // Location services are not enabled
+      if (context.mounted) {
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: Text('Location Services Disabled'),
+            content: Text('Please enable location services to send your location with the alert.'),
+            actions: [
+              CupertinoDialogAction(
+                child: Text('OK'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      }
+      return null;
+    }
+
+    // Check location permission
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    // Get current position
+    return await Geolocator.getCurrentPosition();
+  }
+
   Future<void> _sendSMS(String emergencyNumber, String message) async {
     try {
       setState(() => _isSending = true);
       
+      // Get current location
+      final Position? position = await _getCurrentLocation();
+      
       // Get all emergency contact numbers
       final emergencyContacts = await _getEmergencyContactNumbers();
       
-      // Create the full message
-      final fullMessage = 'EMERGENCY ALERT: $message\n\nThis is an emergency message from Neighborhood Safety Network.';
+      // Create the full message with location if available
+      String fullMessage = 'EMERGENCY ALERT: $message\n\n';
+      
+      if (position != null) {
+        fullMessage += 'My current location:\n';
+        fullMessage += 'https://www.google.com/maps?q=${position.latitude},${position.longitude}\n\n';
+      }
+      
+      fullMessage += 'This is an emergency message from Neighborhood Safety Network.';
+      
+      // URI encode the message
+      final encodedMessage = Uri.encodeComponent(fullMessage);
       
       // Combine emergency number with contact numbers
-      final allRecipients = [emergencyNumber, ...emergencyContacts];
+      final allRecipients = [emergencyNumber, ...emergencyContacts].join(',');
       
-      // Create SMS URI with multiple recipients
-      final Uri smsUri = Uri(
-        scheme: 'sms',
-        path: allRecipients.join(','),
-        queryParameters: {'body': fullMessage},
-      );
+      // Create SMS URI with the proper scheme
+      final Uri smsUri = Uri.parse('sms:$allRecipients?body=$encodedMessage');
 
-      if (!await launchUrl(smsUri)) {
+      if (!await launchUrl(smsUri, mode: LaunchMode.externalApplication)) {
         throw 'Could not launch SMS';
       }
       
       setState(() {
         _isSending = false;
         messages.add(ChatMessage(
-          message: "Emergency message sent to all emergency contacts",
+          message: position != null 
+              ? "Emergency message and location sent to all emergency contacts"
+              : "Emergency message sent to all emergency contacts",
           isUser: false,
         ));
       });
@@ -149,6 +219,50 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
                   ],
                 ),
               ),
+            
+            // Add this new Container for quick messages
+            Container(
+              height: 50,
+              margin: EdgeInsets.symmetric(vertical: 8),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                itemCount: quickMessages.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      onTap: () => _selectQuickMessage(quickMessages[index]),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey.shade300),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 3,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            quickMessages[index],
+                            style: TextStyle(
+                              color: Colors.grey[800],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            
             Container(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -284,3 +398,4 @@ class MessageBubble extends StatelessWidget {
     );
   }
 }
+
