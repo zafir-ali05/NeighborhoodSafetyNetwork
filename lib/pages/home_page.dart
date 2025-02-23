@@ -52,7 +52,7 @@ class _HomePageContentState extends State<HomePageContent> {
   void initState() {
     super.initState();
     _initializeLocation();
-    _listenToMarkers();
+    _listenToMarkers(); // This will start listening to Firebase updates
   }
 
   Future<void> _initializeLocation() async {
@@ -283,43 +283,44 @@ class _HomePageContentState extends State<HomePageContent> {
       return;
     }
 
-    // Choose marker hue based on danger level
-    double markerHue;
-    switch (_selectedDanger) {
-      case 'Level 1 - Low Risk: Proceed with caution':
-        markerHue = BitmapDescriptor.hueYellow;
-        break;
-      case 'Level 2 - Medium Risk: Avoid area if possible':
-        markerHue = BitmapDescriptor.hueOrange;
-        break;
-      case 'Level 3 - High Risk: Avoid area at all costs':
-        markerHue = BitmapDescriptor.hueRed;
-        break;
-      default:
-        markerHue = BitmapDescriptor.hueAzure;
-    }
-
-    final Marker marker = Marker(
-      markerId: MarkerId(DateTime.now().millisecondsSinceEpoch.toString()),
-      position: LatLng(lat, lng),
-      infoWindow: InfoWindow(
-        title: _selectedName,
-        snippet: 'Danger: $_selectedDanger${_descriptionController.text.isNotEmpty ? '\n${_descriptionController.text}' : ''}',
-      ),
-      icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
-    );
-
-    setState(() {
-      _markers.add(marker);
-    });
+    try {
+      // First add to Firestore
+      await _firestore.collection('markers').add({
+        'latitude': lat,
+        'longitude': lng,
+        'name': _selectedName,
+        'dangerLevel': _selectedDanger,
+        'description': _descriptionController.text,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
 
       // Clear form fields for next marker
-      _selectedName = null;
-      _selectedDanger = null;
-      _descriptionController.clear();
+      setState(() {
+        _selectedName = null;
+        _selectedDanger = null;
+        _descriptionController.clear();
+      });
+
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Marker added successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
       print('Error adding marker: $e');
-      // You might want to show an error dialog here
+      // Show error message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add marker: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -329,37 +330,44 @@ class _HomePageContentState extends State<HomePageContent> {
       .snapshots()
       .listen((snapshot) {
         setState(() {
-          _markers.clear();
+          // Only clear user-added markers, not Places API markers
+          _markers.removeWhere((marker) => 
+            marker.markerId.value.startsWith('user_'));
+          
           for (var doc in snapshot.docs) {
-            final mapMarker = MapMarker.fromMap(doc.id, doc.data());
-            double markerHue = _getMarkerHue(mapMarker.dangerLevel);
-            
+            final data = doc.data();
+            final String dangerLevel = data['dangerLevel'] as String;
             final marker = Marker(
-              markerId: MarkerId(mapMarker.id),
-              position: LatLng(mapMarker.latitude, mapMarker.longitude),
-              infoWindow: InfoWindow(
-                title: mapMarker.name,
-                snippet: 'Danger: ${mapMarker.dangerLevel}${mapMarker.description != null ? '\n${mapMarker.description}' : ''}',
+              markerId: MarkerId('user_${doc.id}'),
+              position: LatLng(
+                data['latitude'] as double,
+                data['longitude'] as double
               ),
-              icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
+              infoWindow: InfoWindow(
+                title: data['name'] as String,
+                snippet: 'Danger: $dangerLevel\n${data['description'] ?? ''}',
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                _getMarkerHue(dangerLevel)
+              ),
             );
             _markers.add(marker);
           }
         });
+    }, onError: (error) {
+      print('Error listening to markers: $error');
     });
   }
 
   double _getMarkerHue(String dangerLevel) {
-    switch (dangerLevel) {
-      case 'Level 1':
-        return BitmapDescriptor.hueYellow;
-      case 'Level 2':
-        return BitmapDescriptor.hueOrange;
-      case 'Level 3':
-        return BitmapDescriptor.hueRed;
-      default:
-        return BitmapDescriptor.hueAzure;
+    if (dangerLevel.contains('Level 1')) {
+      return BitmapDescriptor.hueYellow;
+    } else if (dangerLevel.contains('Level 2')) {
+      return BitmapDescriptor.hueOrange;
+    } else if (dangerLevel.contains('Level 3')) {
+      return BitmapDescriptor.hueRed;
     }
+    return BitmapDescriptor.hueAzure;
   }
 
   @override
