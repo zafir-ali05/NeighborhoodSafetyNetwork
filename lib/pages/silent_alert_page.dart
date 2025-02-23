@@ -120,14 +120,15 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
       
       fullMessage += 'This is an emergency message from Neighborhood Safety Network.';
       
-      // URI encode the message
-      final encodedMessage = Uri.encodeComponent(fullMessage);
-      
       // Combine emergency number with contact numbers
-      final allRecipients = [emergencyNumber, ...emergencyContacts].join(',');
+      final allRecipients = [emergencyNumber, ...emergencyContacts].join(';');
       
-      // Create SMS URI with the proper scheme
-      final Uri smsUri = Uri.parse('sms:$allRecipients?body=$encodedMessage');
+      // Create SMS URI using platform-specific separator (semicolon for Android, comma for iOS)
+      final Uri smsUri = Uri(
+        scheme: 'sms',
+        path: allRecipients,
+        queryParameters: {'body': fullMessage},
+      );
 
       if (!await launchUrl(smsUri, mode: LaunchMode.externalApplication)) {
         throw 'Could not launch SMS';
