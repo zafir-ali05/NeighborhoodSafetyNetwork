@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/emergency_contact.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -8,7 +8,8 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // Get the already opened Hive box
+  final Box<EmergencyContact> contactsBox = Hive.box<EmergencyContact>('contacts');
 
   @override
   Widget build(BuildContext context) {
@@ -28,18 +29,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Text(
-              'Add emergency contacts who will be notified in case of an emergency.',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
+          // ... existing UI parts ...
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: ElevatedButton(
@@ -71,18 +61,10 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           SizedBox(height: 24),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore.collection('emergency_contacts').snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
-
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            child: ValueListenableBuilder(
+              valueListenable: contactsBox.listenable(),
+              builder: (context, Box<EmergencyContact> box, _) {
+                if (box.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -97,17 +79,12 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   );
                 }
-
+                final contacts = box.values.toList();
                 return ListView.builder(
                   padding: EdgeInsets.all(20),
-                  itemCount: snapshot.data!.docs.length,
+                  itemCount: contacts.length,
                   itemBuilder: (context, index) {
-                    final doc = snapshot.data!.docs[index];
-                    final contact = EmergencyContact.fromMap(
-                      doc.id,
-                      doc.data() as Map<String, dynamic>,
-                    );
-
+                    final contact = contacts[index];
                     return Container(
                       margin: EdgeInsets.only(bottom: 16),
                       decoration: BoxDecoration(
@@ -156,7 +133,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         trailing: IconButton(
                           icon: Icon(Icons.delete_outline, color: Colors.red[400]),
-                          onPressed: () => _deleteContact(contact.id),
+                          onPressed: () => _deleteContact(contact.key),
                         ),
                         isThreeLine: true,
                       ),
@@ -171,73 +148,29 @@ class _ProfilePageState extends State<ProfilePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddContactDialog(context),
         backgroundColor: Colors.black87,
-        child: Icon(Icons.person_add, color: Colors.white),
         elevation: 2,
+        child: Icon(Icons.person_add, color: Colors.white),
       ),
     );
   }
 
-  void _deleteContact(String id) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Text(
-          'Delete Contact',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to delete this emergency contact?',
-          style: TextStyle(
-            color: Colors.grey[800],
-            fontSize: 16,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              FirebaseFirestore.instance
-                  .collection('emergency_contacts')
-                  .doc(id)
-                  .delete();
-              Navigator.of(context).pop();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red[400],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
-    );
+  void _deleteContact(dynamic key) {
+    contactsBox.delete(key);
   }
 
   void _showAddContactDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AddContactDialog(),
       barrierDismissible: false,
+      builder: (context) => AddContactDialog(contactsBox: contactsBox),
     );
   }
 }
 
 class AddContactDialog extends StatefulWidget {
+  final Box<EmergencyContact> contactsBox;
+  const AddContactDialog({required this.contactsBox});
+
   @override
   _AddContactDialogState createState() => _AddContactDialogState();
 }
@@ -347,13 +280,14 @@ class _AddContactDialogState extends State<AddContactDialog> {
 
   void _saveContact() {
     if (_formKey.currentState?.validate() ?? false) {
-      FirebaseFirestore.instance.collection('emergency_contacts').add({
-        'name': _nameController.text,
-        'phone': _phoneController.text,
-        'email': _emailController.text,
-      });
+      final newContact = EmergencyContact(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: _nameController.text,
+        phone: _phoneController.text,
+        email: _emailController.text,
+      );
+      widget.contactsBox.add(newContact);
       Navigator.of(context).pop();
     }
   }
 }
-

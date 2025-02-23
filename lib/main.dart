@@ -10,10 +10,19 @@ import 'pages/profile_page.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'models/emergency_contact.dart';
 
 void main() async {
   // Initialize Firebase
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+
+  // register adapter and open hive box
+  Hive.registerAdapter(EmergencyContactAdapter());
+  await Hive.openBox<EmergencyContact>('contacts'); 
+
+  // firebase initialization
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
