@@ -9,7 +9,7 @@
 
     <application
         android:enableOnBackInvokedCallback="true"
-        android:label="neighborhood_safety_network"
+        android:label="AlertMate"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data
