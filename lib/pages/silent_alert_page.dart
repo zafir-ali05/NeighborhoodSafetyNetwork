@@ -9,6 +9,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/emergency_contact.dart';
 
 class SilentAlertPage extends StatefulWidget {
+  const SilentAlertPage({super.key});
+
   @override
   _SilentAlertPageState createState() => _SilentAlertPageState();
 }
@@ -340,7 +342,7 @@ class ChatMessage {
     required this.message,
     required this.isUser,
     DateTime? timestamp,
-  }) : this.timestamp = timestamp ?? DateTime.now();
+  }) : timestamp = timestamp ?? DateTime.now();
 }
 
 class MessageBubble extends StatelessWidget {
@@ -348,7 +350,7 @@ class MessageBubble extends StatelessWidget {
   final bool isUser;
   final DateTime timestamp;
 
-  const MessageBubble({
+  const MessageBubble({super.key, 
     required this.message,
     required this.isUser,
     required this.timestamp,

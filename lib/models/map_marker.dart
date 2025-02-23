@@ -15,7 +15,7 @@ class MapMarker {
     required this.dangerLevel,
     this.description,
     DateTime? timestamp,
-  }) : this.timestamp = timestamp ?? DateTime.now();
+  }) : timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toMap() {
     return {

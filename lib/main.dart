@@ -30,6 +30,8 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -44,6 +46,8 @@ class MyApp extends StatelessWidget {
 }
 
 class MainPage extends StatefulWidget {
+  const MainPage({super.key});
+
   @override
   _MainPageState createState() => _MainPageState();
 }
@@ -161,13 +165,13 @@ class _MainPageState extends State<MainPage> {
                   content: Text('Confirm sending SOS?'),
                   actions: <Widget>[
                     CupertinoDialogAction(
-                      child: Text('Confirm'),
                       isDestructiveAction: true,
                       onPressed: () async {
                         Navigator.pop(context);
                         await _makePhoneCall('5197668359');
                         await _speak("This is an emergency. Please send help immediately.");
                       },
+                      child: Text('Confirm'),
                     ),
                     CupertinoDialogAction(
                       child: Text('Cancel'),
