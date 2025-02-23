@@ -24,8 +24,12 @@ class _HomePageContentState extends State<HomePageContent> {
   );
 
   // ADD MARKER BUTTON CONFIGURATION
-  // dropdonw menu for marker name and danger level
-  final List<String> _dangerLevels = ['Level 1', 'Level 2', 'Level 3'];
+  // dropdown menu for marker name and danger level
+  final List<String> _dangerLevels = [
+    'Level 1 - Low Risk: Proceed with caution', 
+    'Level 2 - Medium Risk: Avoid area if possible', 
+    'Level 3 - High Risk: Avoid area at all costs',
+    ];
   final List<String> _nameOptions = [
     'Car Accident', 
     'Physical Threat', 
@@ -131,6 +135,7 @@ class _HomePageContentState extends State<HomePageContent> {
             EdgeInsets.all(16.0),
           ),
           child: Wrap(
+            runSpacing: 15,
             children: [
               Center(
                 child: Container(
@@ -147,29 +152,32 @@ class _HomePageContentState extends State<HomePageContent> {
                 'Add Marker',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 16),
+              SizedBox(height: 20),
               TextField(
                 controller: _latController,
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'Latitude',
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   border: OutlineInputBorder(),
                 ),
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 20),
               TextField(
                 controller: _lngController,
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
                   labelText: 'Longitude',
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   border: OutlineInputBorder(),
                 ),
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 value: _selectedName,
                 decoration: InputDecoration(
-                  labelText: 'Name',
+                  labelText: 'Category',
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   border: OutlineInputBorder(),
                 ),
                 items: _nameOptions
@@ -181,11 +189,12 @@ class _HomePageContentState extends State<HomePageContent> {
                   });
                 },
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 value: _selectedDanger,
                 decoration: InputDecoration(
                   labelText: 'Danger Level',
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   border: OutlineInputBorder(),
                 ),
                 items: _dangerLevels
@@ -197,16 +206,17 @@ class _HomePageContentState extends State<HomePageContent> {
                   });
                 },
               ),
-              SizedBox(height: 12),
+              SizedBox(height: 20),
               TextField(
                 controller: _descriptionController,
                 decoration: InputDecoration(
                   labelText: 'Description (optional)',
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 2,
               ),
-              SizedBox(height: 16),
+              SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
                   _addMarker();
@@ -238,13 +248,13 @@ class _HomePageContentState extends State<HomePageContent> {
     // Choose marker hue based on danger level
     double markerHue;
     switch (_selectedDanger) {
-      case 'Level 1':
+      case 'Level 1 - Low Risk: Proceed with caution':
         markerHue = BitmapDescriptor.hueYellow;
         break;
-      case 'Level 2':
+      case 'Level 2 - Medium Risk: Avoid area if possible':
         markerHue = BitmapDescriptor.hueOrange;
         break;
-      case 'Level 3':
+      case 'Level 3 - High Risk: Avoid area at all costs':
         markerHue = BitmapDescriptor.hueRed;
         break;
       default:
@@ -286,15 +296,20 @@ class _HomePageContentState extends State<HomePageContent> {
       body: GoogleMap(
         myLocationEnabled: true,
         myLocationButtonEnabled: true,
+        zoomControlsEnabled: false, // hide zoom buttons
         onMapCreated: _onMapCreated,
         initialCameraPosition: _initialPosition,
         markers: _markers,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openAddMarkerForm,
-        child: Icon(Icons.add_location_alt),
-      ), // ActionButton
-    );
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,      
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 69.0), // lol
+        child: FloatingActionButton(
+          onPressed: _openAddMarkerForm,
+          child: Icon(Icons.add_location_alt),
+        ),
+      ), // padding for button
+    ); // Scaffold
   }
 }
 
