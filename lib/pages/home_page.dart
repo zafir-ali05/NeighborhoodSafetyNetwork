@@ -1,10 +1,10 @@
-//import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-//import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:location/location.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/map_marker.dart';
 
 class HomePageContent extends StatefulWidget {
   @override
@@ -16,6 +16,7 @@ class _HomePageContentState extends State<HomePageContent> {
   final Set<Marker> _markers = {};
   Location location = Location();
   LocationData? currentLocation;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Define the initial camera position
   final CameraPosition _initialPosition = const CameraPosition(
@@ -50,31 +51,56 @@ class _HomePageContentState extends State<HomePageContent> {
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
+    _initializeLocation();
+    _listenToMarkers();
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future<void> _initializeLocation() async {
     try {
-      currentLocation = await location.getLocation();
-      if (currentLocation != null) {
-        // Get current location for form fields
-        _latController.text = currentLocation!.latitude!.toString();
-        _lngController.text = currentLocation!.longitude!.toString();        
+      // Request permission first
+      bool serviceEnabled = await location.serviceEnabled();
+      if (!serviceEnabled) {
+        serviceEnabled = await location.requestService();
+        if (!serviceEnabled) return;
+      }
 
-        _controller.animateCamera(
-          CameraUpdate.newLatLng(
-            LatLng(currentLocation!.latitude!, currentLocation!.longitude!),
-          ),
-        );
-        _searchNearbyPlaces();
+      PermissionStatus permissionGranted = await location.hasPermission();
+      if (permissionGranted == PermissionStatus.denied) {
+        permissionGranted = await location.requestPermission();
+        if (permissionGranted != PermissionStatus.granted) return;
+      }
+
+      // Get location
+      currentLocation = await location.getLocation();
+      
+      if (currentLocation != null) {
+        // Update form fields
+        _latController.text = currentLocation!.latitude!.toString();
+        _lngController.text = currentLocation!.longitude!.toString();
+
+        // If controller is initialized, move camera
+        if (_controller != null) {
+          _controller.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(
+                target: LatLng(
+                  currentLocation!.latitude!,
+                  currentLocation!.longitude!,
+                ),
+                zoom: 15,
+              ),
+            ),
+          );
+          _searchNearbyPlaces();
+        }
       }
     } catch (e) {
-      //print('Error getting location: $e');  // for testing
+      print('Error initializing location: $e');
     }
   }
 
   Future<void> _searchNearbyPlaces() async {
-    if (currentLocation == null) return;
+    if (currentLocation == null) return; // idk how this is working
 
     final String apiKey = 'YOUR_API_KEY'; // idk how this is working
     final String baseUrl = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
@@ -119,7 +145,20 @@ class _HomePageContentState extends State<HomePageContent> {
 
   void _onMapCreated(GoogleMapController controller) {
     _controller = controller;
-    _getCurrentLocation();
+    if (currentLocation != null) {
+      controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(
+              currentLocation!.latitude!,
+              currentLocation!.longitude!,
+            ),
+            zoom: 15,
+          ),
+        ),
+      );
+      _searchNearbyPlaces();
+    }
   }
 
   // Open marker from form
@@ -237,11 +276,10 @@ class _HomePageContentState extends State<HomePageContent> {
   }
 
   // Add marker using values from form
-  void _addMarker() {
+  void _addMarker() async {
     double? lat = double.tryParse(_latController.text);
     double? lng = double.tryParse(_lngController.text);
     if (lat == null || lng == null || _selectedName == null || _selectedDanger == null) {
-      // You can show an error using a Snackbar or Dialog if desired.
       return;
     }
 
@@ -275,11 +313,54 @@ class _HomePageContentState extends State<HomePageContent> {
       _markers.add(marker);
     });
 
-    // Clear form fields for next marker
-    _selectedName = null;
-    _selectedDanger = null;
-    _descriptionController.clear();
-  }  
+      // Clear form fields for next marker
+      _selectedName = null;
+      _selectedDanger = null;
+      _descriptionController.clear();
+    } catch (e) {
+      print('Error adding marker: $e');
+      // You might want to show an error dialog here
+    }
+  }
+
+  void _listenToMarkers() {
+    _firestore.collection('markers')
+      .orderBy('timestamp', descending: true)
+      .snapshots()
+      .listen((snapshot) {
+        setState(() {
+          _markers.clear();
+          for (var doc in snapshot.docs) {
+            final mapMarker = MapMarker.fromMap(doc.id, doc.data());
+            double markerHue = _getMarkerHue(mapMarker.dangerLevel);
+            
+            final marker = Marker(
+              markerId: MarkerId(mapMarker.id),
+              position: LatLng(mapMarker.latitude, mapMarker.longitude),
+              infoWindow: InfoWindow(
+                title: mapMarker.name,
+                snippet: 'Danger: ${mapMarker.dangerLevel}${mapMarker.description != null ? '\n${mapMarker.description}' : ''}',
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
+            );
+            _markers.add(marker);
+          }
+        });
+    });
+  }
+
+  double _getMarkerHue(String dangerLevel) {
+    switch (dangerLevel) {
+      case 'Level 1':
+        return BitmapDescriptor.hueYellow;
+      case 'Level 2':
+        return BitmapDescriptor.hueOrange;
+      case 'Level 3':
+        return BitmapDescriptor.hueRed;
+      default:
+        return BitmapDescriptor.hueAzure;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +379,15 @@ class _HomePageContentState extends State<HomePageContent> {
         myLocationButtonEnabled: true,
         zoomControlsEnabled: false, // hide zoom buttons
         onMapCreated: _onMapCreated,
-        initialCameraPosition: _initialPosition,
+        initialCameraPosition: currentLocation != null
+            ? CameraPosition(
+                target: LatLng(
+                  currentLocation!.latitude!,
+                  currentLocation!.longitude!,
+                ),
+                zoom: 15,
+              )
+            : _initialPosition,
         markers: _markers,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,      
