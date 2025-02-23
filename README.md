@@ -1,14 +1,14 @@
-# neighborhood_safety_network (AlertMate) \n\n
+# neighborhood_safety_network (AlertMate) 
 
-🏙️ Neighborhood Safety Network
-Neighborhood Safety Network is a community-driven safety app designed to report suspicious activities, access emergency resources, and stay informed about potential threats. \n\n
+🏙️ Neighborhood Safety Network <br /> <br />
+Neighborhood Safety Network is a community-driven safety app designed to report suspicious activities, access emergency resources, and stay informed about potential threats. <br /><br />
 
- Key Features \n
-🔍 Report Suspicious Activity – Categorize reports (Immediate Threat, Uncertain, etc.) \n
-📍 Safety Locations – View nearby police stations, hospitals, and fire stations \n
-🛒 Open Stores – Find businesses still open for safety or essentials \n
-🚨 SOS & Emergency Contacts – Quick access to 911, emergency services, & emergency contacts! \n
-🆘 Silent Emergency Mode – Discreetly request help with either a manual or pre-generated response (including your location) to local emergency services and emergency contacts. \n\n
+ Key Features <br /> <br />
+🔍 Report Suspicious Activity – Categorize reports (Immediate Threat, Uncertain, etc.) <br />
+📍 Safety Locations – View nearby police stations, hospitals, and fire stations <br />
+🛒 Open Stores – Find businesses still open for safety or essentials <br />
+🚨 SOS & Emergency Contacts – Quick access to 911, emergency services, & emergency contacts! <br />
+🆘 Silent Emergency Mode – Discreetly request help with either a manual or pre-generated response (including your location) to local emergency services and emergency contacts. <br /><br />
 
 Stay safe and stay connected! 🌍✨
 
