@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';  // Add this import
-import 'package:cloud_firestore/cloud_firestore.dart';  // Add this import
+import 'package:intl/intl.dart';
 import 'package:geolocator/geolocator.dart';
+// Remove cloud_firestore import if no longer used
+import 'package:hive_flutter/hive_flutter.dart';
+import '../models/emergency_contact.dart';
 
 class SilentAlertPage extends StatefulWidget {
   @override
@@ -14,21 +16,17 @@ class SilentAlertPage extends StatefulWidget {
 class _SilentAlertPageState extends State<SilentAlertPage> {
   final TextEditingController _messageController = TextEditingController();
   final FlutterTts flutterTts = FlutterTts();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;  // Add this line
   bool _isSending = false;
   List<ChatMessage> messages = [];
 
-  // Add this list of predefined messages
+  // Predefined quick messages (unchanged)
   final List<String> quickMessages = [
-    
     "Severe Domestic Situation - Alert authorities",
     "Under duress - Alert authorities",
     "Someone is following me - Pick me up",
     "Need help - Feel unsafe",
-    
   ];
 
-  // Add this method to handle quick message selection
   void _selectQuickMessage(String message) {
     _messageController.text = message;
   }
@@ -36,23 +34,26 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
   @override
   void initState() {
     super.initState();
-    // Add initial system message
     messages.add(ChatMessage(
-      message: "Please enter your current situation/issue; be as descriptive as possible",
+      message:
+          "Please enter your current situation/issue; be as descriptive as possible",
       isUser: false,
-     ));
+    ));
     messages.add(ChatMessage(
-      message: "The message you send will be sent as an SMS to emergency services & emergency contacts",
+      message:
+          "The message you send will be sent as an SMS to emergency services & emergency contacts",
       isUser: false,
     ));
   }
 
+  /// Updated: Retrieve all emergency contact numbers from the Hive box.
   Future<List<String>> _getEmergencyContactNumbers() async {
     try {
-      final snapshot = await _firestore.collection('emergency_contacts').get();
-      return snapshot.docs.map((doc) => doc.data()['phone'] as String).toList();
+      final Box<EmergencyContact> contactsBox =
+          Hive.box<EmergencyContact>('contacts');
+      return contactsBox.values.map((contact) => contact.phone).toList();
     } catch (e) {
-      print('Error fetching emergency contacts: $e');
+      print('Error fetching emergency contacts from Hive: $e');
       return [];
     }
   }
@@ -61,16 +62,15 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      // Location services are not enabled
       if (context.mounted) {
         showCupertinoDialog(
           context: context,
           builder: (context) => CupertinoAlertDialog(
             title: Text('Location Services Disabled'),
-            content: Text('Please enable location services to send your location with the alert.'),
+            content: Text(
+                'Please enable location services to send your location with the alert.'),
             actions: [
               CupertinoDialogAction(
                 child: Text('OK'),
@@ -83,7 +83,6 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
       return null;
     }
 
-    // Check location permission
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -96,40 +95,44 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
       return null;
     }
 
-    // Get current position
     return await Geolocator.getCurrentPosition();
   }
 
-  Future<void> _sendSMS(String emergencyNumber, String message) async {
+  /// Updated _sendSMS: send alert only to emergency contacts retrieved from Hive.
+  Future<void> _sendSMS(String dummyEmergencyNumber, String message) async {
     try {
       setState(() => _isSending = true);
       
-      // Get current location
+      // Get current location, if available.
       final Position? position = await _getCurrentLocation();
-      
-      // Get all emergency contact numbers
-      final emergencyContacts = await _getEmergencyContactNumbers();
-      
-      // Create the full message with location if available
       String fullMessage = 'EMERGENCY ALERT: $message\n\n';
       
       if (position != null) {
         fullMessage += 'My current location:\n';
-        fullMessage += 'https://www.google.com/maps?q=${position.latitude},${position.longitude}\n\n';
+        fullMessage +=
+            'https://www.google.com/maps?q=${position.latitude},${position.longitude}\n\n';
       }
       
       fullMessage += 'This is an emergency message from Neighborhood Safety Network.';
       
-      // Combine emergency number with contact numbers
-      final allRecipients = [emergencyNumber, ...emergencyContacts].join(';');
+      // Retrieve all emergency contacts from Hive
+      final List<String> emergencyContacts = await _getEmergencyContactNumbers();
       
-      // Create SMS URI using platform-specific separator (semicolon for Android, comma for iOS)
+      if (emergencyContacts.isEmpty) {
+        // If no contacts are available, you can optionally show an error.
+        throw 'No emergency contacts found.';
+      }
+      
+      // Create a group recipient string for all contacts.
+      final String groupRecipients = emergencyContacts.join(';');
+      
+      // Construct the SMS URI.
       final Uri smsUri = Uri(
         scheme: 'sms',
-        path: allRecipients,
+        path: groupRecipients,
         queryParameters: {'body': fullMessage},
       );
-
+      
       if (!await launchUrl(smsUri, mode: LaunchMode.externalApplication)) {
         throw 'Could not launch SMS';
       }
@@ -137,7 +140,7 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
       setState(() {
         _isSending = false;
         messages.add(ChatMessage(
-          message: position != null 
+          message: position != null
               ? "Emergency message and location sent to all emergency contacts"
               : "Emergency message sent to all emergency contacts",
           isUser: false,
@@ -150,7 +153,8 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
           context: context,
           builder: (context) => CupertinoAlertDialog(
             title: Text('Error'),
-            content: Text('Failed to send emergency messages. Please try again.'),
+            content: Text(
+                'Failed to send emergency messages. Please try again. \nError: $e'),
             actions: [
               CupertinoDialogAction(
                 child: Text('OK'),
@@ -171,11 +175,13 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
       _messageController.clear();
     });
 
-    _sendSMS('5197668359', message);  // Replace _makePhoneCall with _sendSMS
+    // The hardcoded number is now ignored because _sendSMS sends to all Hive contacts.
+    _sendSMS('5197668359', message);
   }
 
   @override
   Widget build(BuildContext context) {
+    // The UI remains unchanged.
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -196,10 +202,10 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
             Expanded(
               child: ListView.builder(
                 padding: EdgeInsets.all(16),
-                reverse: true,  // Makes the list scroll from bottom
+                reverse: true,
                 itemCount: messages.length,
                 itemBuilder: (context, index) {
-                  final message = messages[messages.length - 1 - index];  // Reverse the messages
+                  final message = messages[messages.length - 1 - index];
                   return MessageBubble(
                     message: message.message,
                     isUser: message.isUser,
@@ -220,8 +226,6 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
                   ],
                 ),
               ),
-            
-            // Add this new Container for quick messages
             Container(
               height: 50,
               margin: EdgeInsets.symmetric(vertical: 8),
@@ -235,7 +239,8 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
                     child: InkWell(
                       onTap: () => _selectQuickMessage(quickMessages[index]),
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -263,7 +268,6 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
                 },
               ),
             ),
-            
             Container(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -307,10 +311,13 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
                     borderRadius: BorderRadius.circular(25),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(25),
-                      onTap: _isSending ? null : () => _handleSubmit(_messageController.text),
+                      onTap: _isSending
+                          ? null
+                          : () => _handleSubmit(_messageController.text),
                       child: Container(
                         padding: EdgeInsets.all(12),
-                        child: Icon(Icons.send, color: Colors.white, size: 24),
+                        child: Icon(Icons.send,
+                            color: Colors.white, size: 24),
                       ),
                     ),
                   ),
@@ -330,8 +337,8 @@ class ChatMessage {
   final DateTime timestamp;
 
   ChatMessage({
-    required this.message, 
-    required this.isUser, 
+    required this.message,
+    required this.isUser,
     DateTime? timestamp,
   }) : this.timestamp = timestamp ?? DateTime.now();
 }
@@ -356,7 +363,8 @@ class MessageBubble extends StatelessWidget {
         bottom: 16,
       ),
       child: Column(
-        crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Container(
             decoration: BoxDecoration(

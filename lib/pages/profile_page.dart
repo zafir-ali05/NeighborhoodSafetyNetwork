@@ -155,7 +155,31 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _deleteContact(dynamic key) {
-    contactsBox.delete(key);
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirm Deletion'),
+          content: Text('Are you sure you want to delete this emergency contact?'),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[400],
+              ),
+              child: Text('Delete'),
+              onPressed: () {
+                contactsBox.delete(key);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showAddContactDialog(BuildContext context) {
