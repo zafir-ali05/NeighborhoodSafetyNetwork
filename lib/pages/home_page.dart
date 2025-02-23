@@ -1,8 +1,8 @@
-import 'dart:async';
+//import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:location/location.dart';
+//import 'package:cloud_firestore/cloud_firestore.dart';
+//import 'package:location/location.dart';
 
 class HomePageContent extends StatefulWidget {
   @override
@@ -26,7 +26,7 @@ class _HomePageContentState extends State<HomePageContent> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home - Map'),
+        title: const Text('Home'),
       ),
       body: GoogleMap(
         onMapCreated: _onMapCreated,
