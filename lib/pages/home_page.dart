@@ -13,7 +13,7 @@ class HomePageContent extends StatefulWidget {
 
 class _HomePageContentState extends State<HomePageContent> {
   late GoogleMapController _controller;
-  Set<Marker> _markers = {};
+  final Set<Marker> _markers = {};
   Location location = Location();
   LocationData? currentLocation;
 
@@ -22,6 +22,26 @@ class _HomePageContentState extends State<HomePageContent> {
     target: LatLng(37.4221, -122.0841),
     zoom: 15,
   );
+
+  // ADD MARKER BUTTON CONFIGURATION
+  // dropdonw menu for marker name and danger level
+  final List<String> _dangerLevels = ['Level 1', 'Level 2', 'Level 3'];
+  final List<String> _nameOptions = [
+    'Car Accident', 
+    'Physical Threat', 
+    'Armed Threat',
+    'Theft/Vandalism',
+    'Fire',
+    'Stalker/Suspicious Person',
+    'Other'
+    ];
+
+  // Form controllers
+  final TextEditingController _latController = TextEditingController();
+  final TextEditingController _lngController = TextEditingController();
+  String? _selectedName;
+  String? _selectedDanger;
+  final TextEditingController _descriptionController = TextEditingController();
 
   @override
   void initState() {
@@ -33,6 +53,10 @@ class _HomePageContentState extends State<HomePageContent> {
     try {
       currentLocation = await location.getLocation();
       if (currentLocation != null) {
+        // Get current location for form fields
+        _latController.text = currentLocation!.latitude!.toString();
+        _lngController.text = currentLocation!.longitude!.toString();        
+
         _controller.animateCamera(
           CameraUpdate.newLatLng(
             LatLng(currentLocation!.latitude!, currentLocation!.longitude!),
@@ -41,14 +65,14 @@ class _HomePageContentState extends State<HomePageContent> {
         _searchNearbyPlaces();
       }
     } catch (e) {
-      print('Error getting location: $e');
+      //print('Error getting location: $e');  // for testing
     }
   }
 
   Future<void> _searchNearbyPlaces() async {
     if (currentLocation == null) return;
 
-    final String apiKey = 'YOUR_API_KEY'; // Use your Google Maps API key
+    final String apiKey = 'YOUR_API_KEY'; // idk how this is working
     final String baseUrl = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
     
     final String url = '$baseUrl?'
@@ -85,7 +109,7 @@ class _HomePageContentState extends State<HomePageContent> {
         });
       }
     } catch (e) {
-      print('Error searching nearby places: $e');
+      //print('Error searching nearby places: $e');  // for testing
     }
   }
 
@@ -94,27 +118,182 @@ class _HomePageContentState extends State<HomePageContent> {
     _getCurrentLocation();
   }
 
+  // Open marker from form
+  // Function to open the marker form
+  void _openAddMarkerForm() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (BuildContext context) {
+        return Padding(
+          padding: MediaQuery.of(context).viewInsets.add(
+            EdgeInsets.all(16.0),
+          ),
+          child: Wrap(
+            children: [
+              Center(
+                child: Container(
+                  margin: EdgeInsets.only(top: 8, bottom: 16),
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              Text(
+                'Add Marker',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16),
+              TextField(
+                controller: _latController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Latitude',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 12),
+              TextField(
+                controller: _lngController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'Longitude',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedName,
+                decoration: InputDecoration(
+                  labelText: 'Name',
+                  border: OutlineInputBorder(),
+                ),
+                items: _nameOptions
+                    .map((name) => DropdownMenuItem(value: name, child: Text(name)))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedName = value;
+                  });
+                },
+              ),
+              SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedDanger,
+                decoration: InputDecoration(
+                  labelText: 'Danger Level',
+                  border: OutlineInputBorder(),
+                ),
+                items: _dangerLevels
+                    .map((level) => DropdownMenuItem(value: level, child: Text(level)))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedDanger = value;
+                  });
+                },
+              ),
+              SizedBox(height: 12),
+              TextField(
+                controller: _descriptionController,
+                decoration: InputDecoration(
+                  labelText: 'Description (optional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  _addMarker();
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  minimumSize: Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: Text('Add Marker'),
+              ),
+              SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Add marker using values from form
+  void _addMarker() {
+    double? lat = double.tryParse(_latController.text);
+    double? lng = double.tryParse(_lngController.text);
+    if (lat == null || lng == null || _selectedName == null || _selectedDanger == null) {
+      // You can show an error using a Snackbar or Dialog if desired.
+      return;
+    }
+
+    // Choose marker hue based on danger level
+    double markerHue;
+    switch (_selectedDanger) {
+      case 'Level 1':
+        markerHue = BitmapDescriptor.hueYellow;
+        break;
+      case 'Level 2':
+        markerHue = BitmapDescriptor.hueOrange;
+        break;
+      case 'Level 3':
+        markerHue = BitmapDescriptor.hueRed;
+        break;
+      default:
+        markerHue = BitmapDescriptor.hueAzure;
+    }
+
+    final Marker marker = Marker(
+      markerId: MarkerId(DateTime.now().millisecondsSinceEpoch.toString()),
+      position: LatLng(lat, lng),
+      infoWindow: InfoWindow(
+        title: _selectedName,
+        snippet: 'Danger: $_selectedDanger${_descriptionController.text.isNotEmpty ? '\n${_descriptionController.text}' : ''}',
+      ),
+      icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
+    );
+
+    setState(() {
+      _markers.add(marker);
+    });
+
+    // Clear form fields for next marker
+    _selectedName = null;
+    _selectedDanger = null;
+    _descriptionController.clear();
+  }  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home - Map'),
+        title: const Text('Home'),
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: _searchNearbyPlaces,
-          ),
+          ), // IconButton
         ],
-      ),
+      ),  // AppBar
       body: GoogleMap(
         myLocationEnabled: true,
         myLocationButtonEnabled: true,
         onMapCreated: _onMapCreated,
         initialCameraPosition: _initialPosition,
         markers: _markers,
-        myLocationEnabled: true,
-        myLocationButtonEnabled: true,
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openAddMarkerForm,
+        child: Icon(Icons.add_location_alt),
+      ), // ActionButton
     );
   }
 }
