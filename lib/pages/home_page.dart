@@ -294,6 +294,14 @@ class _HomePageContentState extends State<HomePageContent> {
         onPressed: _openAddMarkerForm,
         child: Icon(Icons.add_location_alt),
       ), // ActionButton
+      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
+      bottomNavigationBar: BottomAppBar(
+        shape: CircularNotchedRectangle(),
+        notchMargin: 6.0,
+        child: Container(
+          height: 60, // Adjust height as needed
+        ),     
+      ),
     );
   }
 }
