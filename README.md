@@ -1,7 +1,7 @@
 # neighborhood_safety_network (AlertMate) 
 
 🏙️ Neighborhood Safety Network <br /> <br />
-Neighborhood Safety Network is a community-driven safety app designed to report suspicious activities, access emergency resources, and stay informed about potential threats. <br /><br />
+Neighborhood Safety Network (AlertMate) is a community-driven safety app designed to report suspicious activities, access emergency resources, and stay informed about potential threats. <br /><br />
 
  Key Features <br /> <br />
 🔍 Report Suspicious Activity – Categorize reports (Immediate Threat, Uncertain, etc.) <br />
