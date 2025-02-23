@@ -40,6 +40,39 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
 
+  // Future<void> _makePhoneCall(String phoneNumber) async {
+  // // Format the phone number with proper URI encoding
+  // final Uri launchUri = Uri(
+  //   scheme: 'tel',
+  //   path: phoneNumber.replaceAll(RegExp(r'[^\d+]'), ''),
+  // );
+  
+  // try {
+  //   if (!await launchUrl(launchUri, mode: LaunchMode.externalApplication)) {
+  //     throw 'Could not launch $launchUri';
+  //   }
+  // } catch (e) {
+  //   print('Error making phone call: $e');
+  //   // Show error dialog
+  //   if (context.mounted) {
+  //     showCupertinoDialog(
+  //       context: context,
+  //       builder: (context) => CupertinoAlertDialog(
+  //         title: Text('Error'),
+  //         content: Text('Failed to make phone call. Please try again.'),
+  //         actions: [
+  //           CupertinoDialogAction(
+  //             child: Text('OK'),
+  //             onPressed: () => Navigator.pop(context),
+  //             ),
+  //           ],
+  //         ),
+  //       );
+  //     }
+  //   }
+  // }
+
+
   String page = 'Home';
 
   Widget _getPage() {
@@ -54,18 +87,6 @@ class _MainPageState extends State<MainPage> {
         return ProfilePage();
       default:
         return HomePageContent();
-    }
-  }
-
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
-    } else {
-      throw 'Could not launch $launchUri';
     }
   }
 
@@ -124,7 +145,7 @@ class _MainPageState extends State<MainPage> {
                     isDestructiveAction: true,
                     onPressed: () {
                       Navigator.pop(context);
-                      _makePhoneCall('5197668359'); // Replace with the phone number you want to call
+                      //_makePhoneCall('5197668359'); // Replace with the phone number you want to call
                     },
                   ),
                   CupertinoDialogAction(
