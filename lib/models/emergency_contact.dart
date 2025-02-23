@@ -1,8 +1,19 @@
-class EmergencyContact {
-  String id;
-  String name;
-  String phone;
-  String email;
+import 'package:hive/hive.dart';
+part 'emergency_contact.g.dart';
+
+@HiveType(typeId: 0)
+class EmergencyContact extends HiveObject {
+  @HiveField(0)
+  final String id;
+  
+  @HiveField(1)
+  final String name;
+  
+  @HiveField(2)
+  final String phone;
+  
+  @HiveField(3)
+  final String email;
 
   EmergencyContact({
     required this.id,
@@ -10,21 +21,4 @@ class EmergencyContact {
     required this.phone,
     required this.email,
   });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'phone': phone,
-      'email': email,
-    };
-  }
-
-  factory EmergencyContact.fromMap(String id, Map<String, dynamic> map) {
-    return EmergencyContact(
-      id: id,
-      name: map['name'] ?? '',
-      phone: map['phone'] ?? '',
-      email: map['email'] ?? '',
-    );
-  }
 }
