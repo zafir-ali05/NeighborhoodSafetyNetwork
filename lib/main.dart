@@ -7,7 +7,7 @@ import 'pages/alerts_page.dart';
 import 'pages/silent_alert_page.dart';
 import 'pages/profile_page.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'Services/twilio_service.dart'; // Import the TwilioService
 
 void main() async {
   // Initialize Firebase
@@ -39,8 +39,8 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-
   String page = 'Home';
+  final TwilioService _twilioService = TwilioService(); // Initialize TwilioService
 
   Widget _getPage() {
     switch (page) {
@@ -54,18 +54,6 @@ class _MainPageState extends State<MainPage> {
         return ProfilePage();
       default:
         return HomePageContent();
-    }
-  }
-
-  Future<void> _makePhoneCall(String phoneNumber) async {
-    final Uri launchUri = Uri(
-      scheme: 'tel',
-      path: phoneNumber,
-    );
-    if (await canLaunchUrl(launchUri)) {
-      await launchUrl(launchUri);
-    } else {
-      throw 'Could not launch $launchUri';
     }
   }
 
@@ -124,7 +112,7 @@ class _MainPageState extends State<MainPage> {
                     isDestructiveAction: true,
                     onPressed: () {
                       Navigator.pop(context);
-                      _makePhoneCall('5197668359'); // Replace with the phone number you want to call
+                      _twilioService.makeCall(); // Make the call
                     },
                   ),
                   CupertinoDialogAction(
