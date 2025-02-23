@@ -3,6 +3,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/emergency_contact.dart';
 
 class ProfilePage extends StatefulWidget {
+  const ProfilePage({super.key});
+
   @override
   _ProfilePageState createState() => _ProfilePageState();
 }
@@ -169,7 +171,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
 class AddContactDialog extends StatefulWidget {
   final Box<EmergencyContact> contactsBox;
-  const AddContactDialog({required this.contactsBox});
+  const AddContactDialog({super.key, required this.contactsBox});
 
   @override
   _AddContactDialogState createState() => _AddContactDialogState();
