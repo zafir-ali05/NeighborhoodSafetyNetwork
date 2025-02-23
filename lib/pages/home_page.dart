@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 //import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:location/location.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class HomePageContent extends StatefulWidget {
   @override
@@ -11,7 +13,9 @@ class HomePageContent extends StatefulWidget {
 
 class _HomePageContentState extends State<HomePageContent> {
   late GoogleMapController _controller;
-  final Location _location = Location();
+  Set<Marker> _markers = {};
+  Location location = Location();
+  LocationData? currentLocation;
 
   // Define the initial camera position
   final CameraPosition _initialPosition = const CameraPosition(
@@ -22,81 +26,96 @@ class _HomePageContentState extends State<HomePageContent> {
   @override
   void initState() {
     super.initState();
-    _checkLocationPermission();
+    _getCurrentLocation();
   }
 
-  // Request location permissions if needed
-  Future<void> _checkLocationPermission() async {
-    bool serviceEnabled = await _location.serviceEnabled();
-    if (!serviceEnabled) {
-      serviceEnabled = await _location.requestService();
-      if (!serviceEnabled) {
-        return;
+  Future<void> _getCurrentLocation() async {
+    try {
+      currentLocation = await location.getLocation();
+      if (currentLocation != null) {
+        _controller.animateCamera(
+          CameraUpdate.newLatLng(
+            LatLng(currentLocation!.latitude!, currentLocation!.longitude!),
+          ),
+        );
+        _searchNearbyPlaces();
       }
+    } catch (e) {
+      print('Error getting location: $e');
     }
+  }
 
-    PermissionStatus permissionGranted = await _location.hasPermission();
-    if (permissionGranted == PermissionStatus.denied) {
-      permissionGranted = await _location.requestPermission();
-      if (permissionGranted != PermissionStatus.granted) {
-        return;
+  Future<void> _searchNearbyPlaces() async {
+    if (currentLocation == null) return;
+
+    final String apiKey = 'YOUR_API_KEY'; // Use your Google Maps API key
+    final String baseUrl = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
+    
+    final String url = '$baseUrl?'
+        'location=${currentLocation!.latitude},${currentLocation!.longitude}'
+        '&radius=1500'  // Search within 1.5km
+        '&type=store'   // Search for stores
+        '&openNow=true' // Only show currently open places
+        '&key=$apiKey';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      final data = json.decode(response.body);
+
+      if (data['status'] == 'OK') {
+        setState(() {
+          _markers.clear();
+          for (var place in data['results']) {
+            final marker = Marker(
+              markerId: MarkerId(place['place_id']),
+              position: LatLng(
+                place['geometry']['location']['lat'],
+                place['geometry']['location']['lng'],
+              ),
+              infoWindow: InfoWindow(
+                title: place['name'],
+                snippet: place['vicinity'],
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueGreen,
+              ),
+            );
+            _markers.add(marker);
+          }
+        });
       }
+    } catch (e) {
+      print('Error searching nearby places: $e');
     }
-  }  
+  }
 
   void _onMapCreated(GoogleMapController controller) {
     _controller = controller;
-
-    // Get the current location once the map is created and move the camera
-    _location.getLocation().then((locationData) {
-      if (locationData.latitude != null && locationData.longitude != null) {
-        _controller.animateCamera(
-          CameraUpdate.newLatLng(
-            LatLng(locationData.latitude!, locationData.longitude!),
-          ),
-        );
-      }
-    });
-
-    // Listen to location changes and update the camera
-    _location.onLocationChanged.listen((locationData) {
-      if (locationData.latitude != null && locationData.longitude != null) {
-        _controller.animateCamera(
-          CameraUpdate.newLatLng(
-            LatLng(locationData.latitude!, locationData.longitude!),
-          ),
-        );
-      }
-    });
+    _getCurrentLocation();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home'),
+        title: const Text('Home - Map'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _searchNearbyPlaces,
+          ),
+        ],
       ),
       body: GoogleMap(
         myLocationEnabled: true,
         myLocationButtonEnabled: true,
         onMapCreated: _onMapCreated,
         initialCameraPosition: _initialPosition,
+        markers: _markers,
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
       ),
     );
   }
 }
-
-/*class HomePageContent extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Home'),
-      ),
-      body: Center(
-        child: Text('Home Page Content'),
-      ),
-    );
-  }
-}*/
 
