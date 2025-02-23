@@ -100,7 +100,25 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
     return await Geolocator.getCurrentPosition();
   }
 
-  Future<void> _sendSMS(String emergencyNumber, String message) async {
+  Future<void> _sendSMS(String message, List<String> recipients) async {
+    final Uri smsUri = Uri(
+      scheme: 'sms',
+      path: recipients.join(','),
+      queryParameters: {'body': message},
+    );
+
+    try {
+      if (await canLaunchUrl(smsUri)) {
+        await launchUrl(smsUri);
+      } else {
+        throw 'Could not launch SMS';
+      }
+    } catch (e) {
+      print('Error sending SMS: $e');
+    }
+  }
+
+  Future<void> _sendEmergencyAlert(String emergencyNumber, String message) async {
     try {
       setState(() => _isSending = true);
       
@@ -121,18 +139,9 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
       fullMessage += 'This is an emergency message from Neighborhood Safety Network.';
       
       // Combine emergency number with contact numbers
-      final allRecipients = [emergencyNumber, ...emergencyContacts].join(';');
+      final allRecipients = [emergencyNumber, ...emergencyContacts];
       
-      // Create SMS URI using platform-specific separator (semicolon for Android, comma for iOS)
-      final Uri smsUri = Uri(
-        scheme: 'sms',
-        path: allRecipients,
-        queryParameters: {'body': fullMessage},
-      );
-
-      if (!await launchUrl(smsUri, mode: LaunchMode.externalApplication)) {
-        throw 'Could not launch SMS';
-      }
+      await _sendSMS(fullMessage, allRecipients);
       
       setState(() {
         _isSending = false;
@@ -171,7 +180,7 @@ class _SilentAlertPageState extends State<SilentAlertPage> {
       _messageController.clear();
     });
 
-    _sendSMS('5197668359', message);  // Replace _makePhoneCall with _sendSMS
+    _sendEmergencyAlert('5197668359', message);  // Replace _makePhoneCall with _sendEmergencyAlert
   }
 
   @override
