@@ -7,6 +7,7 @@ import 'pages/alerts_page.dart';
 import 'pages/silent_alert_page.dart';
 import 'pages/profile_page.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 void main() async {
   // Initialize Firebase
